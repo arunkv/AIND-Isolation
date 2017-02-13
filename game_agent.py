@@ -6,8 +6,12 @@ augment the test suite with your own test cases to further test your code.
 You must test your agent's strength against a set of agents with known
 relative strength using tournament.py and include the results in your report.
 """
+import logging
+import math
 import random
 
+# Configure logging for debugging
+logging.basicConfig(filename = 'game_agent.log', level = logging.WARNING)
 
 class Timeout(Exception):
     """Subclass base exception for code clarity."""
@@ -36,10 +40,27 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
+    return num_my_moves_score(game, player)
 
-    # TODO: finish this function!
-    raise NotImplementedError
+def num_my_moves_score(game, player):
+    """ Heuristic 1:
+    Scoring heuristic based on the number of legal moves player has
+    Parameters
+    ----------
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
 
+    player : object
+        A player instance in the current game (i.e., an object corresponding to
+        one of the player objects `game.__player_1__` or `game.__player_2__`.)
+
+    Returns
+    -------
+    float
+        The heuristic value of the current game state to the specified player.
+    """
+    return game.get_legal_moves(player)
 
 class CustomPlayer:
     """Game-playing agent that chooses a move using your evaluation function
@@ -116,27 +137,72 @@ class CustomPlayer:
             (-1, -1) if there are no available legal moves.
         """
 
+        logging.debug("Time left: %f ms", time_left())
         self.time_left = time_left
-
-        # TODO: finish this function!
 
         # Perform any required initializations, including selecting an initial
         # move from the game board (i.e., an opening book), or returning
         # immediately if there are no legal moves
+
+        # If are no legal moves, return (-1, -1)
+        if not legal_moves:
+            return (-1, -1)
+
+        # If this is the first move, use the opening book
+        # Right now, the book is very simple - pick the center
+        if game.move_count == 0:
+            return math.floor(game.height / 2), math.floor(game.width / 2)
+
+        # Keep track of the best move so far
+        best_move_so_far = None
+        best_move_score = None
+
+        # The move and score through algorithm (minimax or alphabeta)
+        move = None
+        score = None
 
         try:
             # The search method call (alpha beta or minimax) should happen in
             # here in order to avoid timeout. The try/except block will
             # automatically catch the exception raised by the search method
             # when the timer gets close to expiring
-            pass
+            while True:
+                if self.method == 'minimax':
+                    # Run minimax
+                    logging.debug("Running minimax with search depth %d", self.search_depth)
+                    score, move = self.minimax(game, self.search_depth)
+                elif self.method == 'alphabeta':
+                    # Run alpha beta pruning
+                    logging.debug("Running alpha beta pruning with search depth %d", self.search_depth)
+                    score, move = self.alphabeta(game, self.search_depth)
+                else:
+                    logging.warning("Unknown search method: %s", self.method)
+
+                # Keep track of best move so far
+                if best_move_so_far is None or best_move_score < score:
+                    best_move_so_far = move
+                    best_move_score = score
+
+                # If we need iterative deepening, proceed with that
+                if not self.iterative:
+                    break
+                else:
+                    logging.info("Iterative deepening. Increasing search depth to %d", self.search_depth + 1)
+                    self.search_depth += 1 # Iterative search with greater depth
+                    if self.search_depth > 10: # TODO: Remove
+                        break
 
         except Timeout:
             # Handle any actions required at timeout, if necessary
-            pass
+            logging.debug("Encountered timeout")
+
+            # If no move was selected so far, just use the first legal move
+            if best_move_so_far is None:
+                logging.debug("Timed out without a best move selected")
+                best_move_so_far = legal_moves[0]
 
         # Return the best move from the last completed search iteration
-        raise NotImplementedError
+        return best_move_so_far
 
     def minimax(self, game, depth, maximizing_player=True):
         """Implement the minimax search algorithm as described in the lectures.
@@ -173,7 +239,7 @@ class CustomPlayer:
             raise Timeout()
 
         # TODO: finish this function!
-        raise NotImplementedError
+        return 1, game.get_legal_moves(game.active_player)[0]
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf"), maximizing_player=True):
         """Implement minimax search with alpha-beta pruning as described in the
@@ -217,4 +283,4 @@ class CustomPlayer:
             raise Timeout()
 
         # TODO: finish this function!
-        raise NotImplementedError
+        return 1, game.get_legal_moves(game.active_player)[0]
