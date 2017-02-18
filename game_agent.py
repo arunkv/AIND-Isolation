@@ -10,6 +10,8 @@ import logging
 import math
 import random
 
+MOVE_IF_NO_MOVE = (-1, -1)
+
 # Configure logging for debugging
 logging.basicConfig(filename = 'game_agent.log', level = logging.WARNING)
 
@@ -60,7 +62,7 @@ def num_my_moves_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    return game.get_legal_moves(player)
+    return float(len(game.get_legal_moves(player)))
 
 class CustomPlayer:
     """Game-playing agent that chooses a move using your evaluation function
@@ -139,6 +141,8 @@ class CustomPlayer:
 
         logging.debug("Time left: %f ms", time_left())
         self.time_left = time_left
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise Timeout()
 
         # Perform any required initializations, including selecting an initial
         # move from the game board (i.e., an opening book), or returning
@@ -146,11 +150,14 @@ class CustomPlayer:
 
         # If are no legal moves, return (-1, -1)
         if not legal_moves:
+            logging.debug("No legal moves")
             return (-1, -1)
 
         # If this is the first move, use the opening book
         # Right now, the book is very simple - pick the center
-        if game.move_count == 0:
+        # TODO: Improve opening book
+        if game.move_count == 1:
+            logging.debug("Opening book move")
             return math.floor(game.height / 2), math.floor(game.width / 2)
 
         # Keep track of the best move so far
@@ -166,7 +173,15 @@ class CustomPlayer:
             # here in order to avoid timeout. The try/except block will
             # automatically catch the exception raised by the search method
             # when the timer gets close to expiring
+
+            # If we are using iterative deepening, search depth should start at 1
+            if self.search_depth == -1 and self.iterative:
+                self.search_depth = 1
+
             while True:
+                if self.time_left() < self.TIMER_THRESHOLD:
+                    raise Timeout()
+
                 if self.method == 'minimax':
                     # Run minimax
                     logging.debug("Running minimax with search depth %d", self.search_depth)
@@ -189,8 +204,6 @@ class CustomPlayer:
                 else:
                     logging.info("Iterative deepening. Increasing search depth to %d", self.search_depth + 1)
                     self.search_depth += 1 # Iterative search with greater depth
-                    if self.search_depth > 10: # TODO: Remove
-                        break
 
         except Timeout:
             # Handle any actions required at timeout, if necessary
@@ -238,8 +251,90 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
 
-        # TODO: finish this function!
-        return 1, game.get_legal_moves(game.active_player)[0]
+        legal_moves = game.get_legal_moves(game.active_player)
+
+        # Terminal test - depth 0
+        if depth <= 0:
+            return self.score(game, game.active_player), MOVE_IF_NO_MOVE
+
+        best_move_so_far = None
+        best_move_score = None
+
+        for legal_move in legal_moves:
+            if self.time_left() < self.TIMER_THRESHOLD:
+                raise Timeout()
+
+            new_game = game.forecast_move(legal_move)
+            if maximizing_player:
+                new_score = self.min_value(new_game, depth - 1)
+            else:
+                new_score = self.max_value(new_game, depth - 1)
+            if best_move_so_far is None or best_move_score < new_score:
+                best_move_so_far = legal_move
+                best_move_score = new_score
+        return best_move_score, best_move_so_far
+
+    def max_value(self, game, depth):
+        """Implement max-value and proceed to next depth
+
+        Parameters
+        ----------
+        game : isolation.Board
+            An instance of the Isolation game `Board` class representing the
+            current game state
+
+        depth : int
+            Depth is an integer representing the maximum number of plies to
+            search in the game tree before aborting
+
+        Returns
+        -------
+        float
+            The score for the current search branch
+
+        """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise Timeout()
+
+        # Terminal test - depth 0
+        if depth <= 0:
+            return self.score(game, game.active_player)
+
+        v = float("-inf")
+        for legal_move in game.get_legal_moves():
+            v = max(v, self.min_value(game.forecast_move(legal_move), depth - 1))
+        return v
+
+    def min_value(self, game, depth):
+        """Implement min-value and proceed to next depth
+
+        Parameters
+        ----------
+        game : isolation.Board
+            An instance of the Isolation game `Board` class representing the
+            current game state
+
+        depth : int
+            Depth is an integer representing the maximum number of plies to
+            search in the game tree before aborting
+
+        Returns
+        -------
+        float
+            The score for the current search branch
+
+        """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise Timeout()
+
+        # Terminal test - depth 1
+        if depth <= 0:
+            return self.score(game, game.active_player)
+
+        v = float("inf")
+        for legal_move in game.get_legal_moves():
+            v = min(v, self.max_value(game.forecast_move(legal_move), depth - 1))
+        return v
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf"), maximizing_player=True):
         """Implement minimax search with alpha-beta pruning as described in the
@@ -283,4 +378,4 @@ class CustomPlayer:
             raise Timeout()
 
         # TODO: finish this function!
-        return 1, game.get_legal_moves(game.active_player)[0]
+        return self.minimax(game, 1, maximizing_player)
