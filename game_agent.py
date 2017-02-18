@@ -268,14 +268,14 @@ class CustomPlayer:
             if maximizing_player:
                 new_score = self.min_value(new_game, depth - 1, game.active_player)
             else:
-                new_score = self.max_value(new_game, depth - 1, game.active_player)
+                new_score = self.minimax_max_value(new_game, depth - 1, game.active_player)
             if best_move_so_far is None or best_move_score < new_score:
                 best_move_so_far = legal_move
                 best_move_score = new_score
         return best_move_score, best_move_so_far
 
-    def max_value(self, game, depth, player):
-        """Implement max-value and proceed to next depth
+    def minimax_max_value(self, game, depth, player):
+        """Implement max-value (Russell & Norvig) and proceed to next depth
 
         Parameters
         ----------
@@ -286,6 +286,10 @@ class CustomPlayer:
         depth : int
             Depth is an integer representing the maximum number of plies to
             search in the game tree before aborting
+
+        player : object
+            A player instance in the current game (i.e., an object corresponding to
+            one of the player objects `game.__player_1__` or `game.__player_2__`.)
 
         Returns
         -------
@@ -306,7 +310,7 @@ class CustomPlayer:
         return v
 
     def min_value(self, game, depth, player):
-        """Implement min-value and proceed to next depth
+        """Implement min-value (Russell & Norvig) and proceed to next depth
 
         Parameters
         ----------
@@ -317,6 +321,10 @@ class CustomPlayer:
         depth : int
             Depth is an integer representing the maximum number of plies to
             search in the game tree before aborting
+
+        player : object
+            A player instance in the current game (i.e., an object corresponding to
+            one of the player objects `game.__player_1__` or `game.__player_2__`.)
 
         Returns
         -------
@@ -333,7 +341,7 @@ class CustomPlayer:
 
         v = float("inf")
         for legal_move in game.get_legal_moves():
-            v = min(v, self.max_value(game.forecast_move(legal_move), depth - 1, player))
+            v = min(v, self.minimax_max_value(game.forecast_move(legal_move), depth - 1, player))
         return v
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf"), maximizing_player=True):
