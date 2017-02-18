@@ -13,7 +13,7 @@ import random
 MOVE_IF_NO_MOVE = (-1, -1)
 
 # Configure logging for debugging
-logging.basicConfig(filename = 'game_agent.log', level = logging.WARNING)
+logging.basicConfig(filename = 'game_agent.log', level = logging.INFO)
 
 class Timeout(Exception):
     """Subclass base exception for code clarity."""
@@ -95,13 +95,16 @@ class CustomPlayer:
     """
 
     def __init__(self, search_depth=3, score_fn=custom_score,
-                 iterative=True, method='minimax', timeout=10.):
+                 iterative=True, method='minimax', timeout=25.):
         self.search_depth = search_depth
         self.iterative = iterative
         self.score = score_fn
         self.method = method
         self.time_left = None
         self.TIMER_THRESHOLD = timeout
+        logging.info("Timeout set to %fms", timeout)
+        self.best_move_so_far = None
+        self.best_move_score = None
 
     def get_move(self, game, legal_moves, time_left):
         """Search for the best move from the available legal moves and return a
@@ -161,12 +164,8 @@ class CustomPlayer:
             return math.floor(game.height / 2), math.floor(game.width / 2)
 
         # Keep track of the best move so far
-        best_move_so_far = None
-        best_move_score = None
-
-        # The move and score through algorithm (minimax or alphabeta)
-        move = None
-        score = None
+        self.best_move_so_far = None
+        self.best_move_score = None
 
         try:
             # The search method call (alpha beta or minimax) should happen in
@@ -194,15 +193,15 @@ class CustomPlayer:
                     logging.warning("Unknown search method: %s", self.method)
 
                 # Keep track of best move so far
-                if best_move_so_far is None or best_move_score < score:
-                    best_move_so_far = move
-                    best_move_score = score
+                if self.best_move_so_far is None or self.best_move_score < score:
+                    self.best_move_so_far = move
+                    self.best_move_score = score
 
                 # If we need iterative deepening, proceed with that
                 if not self.iterative:
                     break
                 else:
-                    logging.info("Iterative deepening. Increasing search depth to %d", self.search_depth + 1)
+                    logging.debug("Iterative deepening. Increasing search depth to %d", self.search_depth + 1)
                     self.search_depth += 1 # Iterative search with greater depth
 
         except Timeout:
@@ -210,12 +209,12 @@ class CustomPlayer:
             logging.debug("Encountered timeout")
 
             # If no move was selected so far, just use the first legal move
-            if best_move_so_far is None:
+            if self.best_move_so_far is None:
                 logging.debug("Timed out without a best move selected")
-                best_move_so_far = legal_moves[0]
+                self.best_move_so_far = legal_moves[0]
 
         # Return the best move from the last completed search iteration
-        return best_move_so_far
+        return self.best_move_so_far
 
     def minimax(self, game, depth, maximizing_player=True):
         """Implement the minimax search algorithm as described in the lectures.
@@ -248,17 +247,14 @@ class CustomPlayer:
                 to pass the project unit tests; you cannot call any other
                 evaluation function directly.
         """
-        if self.time_left() < self.TIMER_THRESHOLD:
-            raise Timeout()
-
         legal_moves = game.get_legal_moves(game.active_player)
 
         # Terminal test - depth 0
         if depth <= 0:
             return self.score(game, game.active_player), MOVE_IF_NO_MOVE
 
-        best_move_so_far = None
-        best_move_score = None
+        best_minimax_move_so_far = None
+        best_minimax_move_score = None
 
         for legal_move in legal_moves:
             if self.time_left() < self.TIMER_THRESHOLD:
@@ -269,10 +265,10 @@ class CustomPlayer:
                 new_score = self.minimax_min_value(new_game, depth - 1, game.active_player)
             else:
                 new_score = self.minimax_max_value(new_game, depth - 1, game.active_player)
-            if best_move_so_far is None or best_move_score < new_score:
-                best_move_so_far = legal_move
-                best_move_score = new_score
-        return best_move_score, best_move_so_far
+            if best_minimax_move_so_far is None or best_minimax_move_score < new_score:
+                best_minimax_move_so_far = legal_move
+                best_minimax_move_score = new_score
+        return best_minimax_move_score, best_minimax_move_so_far
 
     def minimax_max_value(self, game, depth, player):
         """Implement max-value (Russell & Norvig) and proceed to next depth
@@ -297,15 +293,15 @@ class CustomPlayer:
             The score for the current search branch
 
         """
-        if self.time_left() < self.TIMER_THRESHOLD:
-            raise Timeout()
-
         # Terminal test - depth 0
         if depth <= 0:
             return self.score(game, player)
 
         v = float("-inf")
         for legal_move in game.get_legal_moves():
+            if self.time_left() < self.TIMER_THRESHOLD:
+                raise Timeout()
+
             v = max(v, self.minimax_min_value(game.forecast_move(legal_move), depth - 1, player))
         return v
 
@@ -332,15 +328,15 @@ class CustomPlayer:
             The score for the current search branch
 
         """
-        if self.time_left() < self.TIMER_THRESHOLD:
-            raise Timeout()
-
         # Terminal test - depth 1
         if depth <= 0:
             return self.score(game, player)
 
         v = float("inf")
         for legal_move in game.get_legal_moves():
+            if self.time_left() < self.TIMER_THRESHOLD:
+                raise Timeout()
+
             v = min(v, self.minimax_max_value(game.forecast_move(legal_move), depth - 1, player))
         return v
 
@@ -422,9 +418,6 @@ class CustomPlayer:
         tuple(int, int)
             The best move for the current branch; (-1, -1) for no legal moves
         """
-        if self.time_left() < self.TIMER_THRESHOLD:
-            raise Timeout()
-
         # Terminal test - depth 0
         if depth <= 0:
             return self.score(game, player), MOVE_IF_NO_MOVE
@@ -432,6 +425,9 @@ class CustomPlayer:
         v = float("-inf")
         best_move = MOVE_IF_NO_MOVE # Keep track of the best move
         for legal_move in game.get_legal_moves():
+            if self.time_left() < self.TIMER_THRESHOLD:
+                raise Timeout()
+
             min_value, min_move = self.alphabeta_min_value(game.forecast_move(legal_move), depth - 1, alpha, beta, player)
             if min_value > v: # v = max(v, min_value)
                 v = min_value
@@ -472,9 +468,6 @@ class CustomPlayer:
         tuple(int, int)
             The best move for the current branch; (-1, -1) for no legal moves
         """
-        if self.time_left() < self.TIMER_THRESHOLD:
-            raise Timeout()
-
         # Terminal test - depth 0
         if depth <= 0:
             return self.score(game, player), MOVE_IF_NO_MOVE
@@ -482,6 +475,9 @@ class CustomPlayer:
         v = float("inf")
         best_move = MOVE_IF_NO_MOVE # Keep track of the best move
         for legal_move in game.get_legal_moves():
+            if self.time_left() < self.TIMER_THRESHOLD:
+                raise Timeout()
+
             max_value, max_move = self.alphabeta_max_value(game.forecast_move(legal_move), depth - 1, alpha, beta, player)
             if max_value < v: # v = min(v, max_value)
                 v = max_value
