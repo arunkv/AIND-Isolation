@@ -266,7 +266,7 @@ class CustomPlayer:
 
             new_game = game.forecast_move(legal_move)
             if maximizing_player:
-                new_score = self.min_value(new_game, depth - 1, game.active_player)
+                new_score = self.minimax_min_value(new_game, depth - 1, game.active_player)
             else:
                 new_score = self.minimax_max_value(new_game, depth - 1, game.active_player)
             if best_move_so_far is None or best_move_score < new_score:
@@ -306,10 +306,10 @@ class CustomPlayer:
 
         v = float("-inf")
         for legal_move in game.get_legal_moves():
-            v = max(v, self.min_value(game.forecast_move(legal_move), depth - 1, player))
+            v = max(v, self.minimax_min_value(game.forecast_move(legal_move), depth - 1, player))
         return v
 
-    def min_value(self, game, depth, player):
+    def minimax_min_value(self, game, depth, player):
         """Implement min-value (Russell & Norvig) and proceed to next depth
 
         Parameters
@@ -385,5 +385,110 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
 
-        # TODO: finish this function!
-        return self.minimax(game, 1, maximizing_player)
+        if maximizing_player:
+            v, move = self.alphabeta_max_value(game, depth, alpha, beta, game.active_player)
+        else:
+            v, move = self.alphabeta_min_value(game, depth, alpha, beta, game.active_player)
+        return v, move
+
+    def alphabeta_max_value(self, game, depth, alpha, beta, player):
+        """Implement max-value (Russell & Norvig) and proceed to next depth
+
+        Parameters
+        ----------
+        game : isolation.Board
+            An instance of the Isolation game `Board` class representing the
+            current game state
+
+        depth : int
+            Depth is an integer representing the maximum number of plies to
+            search in the game tree before aborting
+
+        alpha : float
+            Alpha limits the lower bound of search on minimizing layers
+
+        beta : float
+            Beta limits the upper bound of search on maximizing layers
+
+        player : object
+            A player instance in the current game (i.e., an object corresponding to
+            one of the player objects `game.__player_1__` or `game.__player_2__`.)
+
+        Returns
+        -------
+        float
+            The score for the current search branch
+
+        tuple(int, int)
+            The best move for the current branch; (-1, -1) for no legal moves
+        """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise Timeout()
+
+        # Terminal test - depth 0
+        if depth <= 0:
+            return self.score(game, player), MOVE_IF_NO_MOVE
+
+        v = float("-inf")
+        best_move = MOVE_IF_NO_MOVE # Keep track of the best move
+        for legal_move in game.get_legal_moves():
+            min_value, min_move = self.alphabeta_min_value(game.forecast_move(legal_move), depth - 1, alpha, beta, player)
+            if min_value > v: # v = max(v, min_value)
+                v = min_value
+                best_move = legal_move
+            if v >= beta:
+                return v, legal_move
+            alpha = max(alpha, v)
+        return v, best_move
+
+    def alphabeta_min_value(self, game, depth, alpha, beta, player):
+        """Implement min-value (Russell & Norvig) and proceed to next depth
+
+        Parameters
+        ----------
+        game : isolation.Board
+            An instance of the Isolation game `Board` class representing the
+            current game state
+
+        depth : int
+            Depth is an integer representing the maximum number of plies to
+            search in the game tree before aborting
+
+        alpha : float
+            Alpha limits the lower bound of search on minimizing layers
+
+        beta : float
+            Beta limits the upper bound of search on maximizing layers
+
+        player : object
+            A player instance in the current game (i.e., an object corresponding to
+            one of the player objects `game.__player_1__` or `game.__player_2__`.)
+
+        Returns
+        -------
+        float
+            The score for the current search branch
+
+        tuple(int, int)
+            The best move for the current branch; (-1, -1) for no legal moves
+        """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise Timeout()
+
+        # Terminal test - depth 0
+        if depth <= 0:
+            return self.score(game, player), MOVE_IF_NO_MOVE
+
+        v = float("inf")
+        best_move = MOVE_IF_NO_MOVE # Keep track of the best move
+        for legal_move in game.get_legal_moves():
+            max_value, max_move = self.alphabeta_max_value(game.forecast_move(legal_move), depth - 1, alpha, beta, player)
+            if max_value < v: # v = min(v, max_value)
+                v = max_value
+                best_move = legal_move
+            if v <= alpha:
+                return v, legal_move
+            beta = min(beta, v)
+        return v, best_move
+
+
