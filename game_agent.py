@@ -13,7 +13,7 @@ import random
 MOVE_IF_NO_MOVE = (-1, -1)
 
 # Configure logging for debugging
-logging.basicConfig(filename = 'game_agent.log', level = logging.INFO)
+logging.basicConfig(filename = 'game_agent.log', level = logging.ERROR)
 
 class Timeout(Exception):
     """Subclass base exception for code clarity."""
@@ -42,11 +42,13 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    return num_my_moves_score(game, player)
+    return ratio_score(game, player)
 
-def num_my_moves_score(game, player):
+def ratio_score(game, player):
     """ Heuristic 1:
-    Scoring heuristic based on the number of legal moves player has
+    Scoring heuristic based on the ratio of legal moves player has to the moves
+    of opponent.
+
     Parameters
     ----------
     game : `isolation.Board`
@@ -62,7 +64,17 @@ def num_my_moves_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    return float(len(game.get_legal_moves(player)))
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+
+    my_moves = len(game.get_legal_moves(player))
+    opponent_moves = len(game.get_legal_moves(game.get_opponent(player)))
+    ratio = float('inf') if opponent_moves == 0 else float(my_moves/opponent_moves)
+
+    return ratio
 
 class CustomPlayer:
     """Game-playing agent that chooses a move using your evaluation function
@@ -95,7 +107,7 @@ class CustomPlayer:
     """
 
     def __init__(self, search_depth=3, score_fn=custom_score,
-                 iterative=True, method='minimax', timeout=25.):
+                 iterative=True, method='minimax', timeout=10.):
         self.search_depth = search_depth
         self.iterative = iterative
         self.score = score_fn
@@ -142,7 +154,8 @@ class CustomPlayer:
             (-1, -1) if there are no available legal moves.
         """
 
-        logging.debug("Time left: %f ms", time_left())
+        logging.debug("Called get_move with time left: %f ms", time_left())
+        logging.debug(game.print_board())
         self.time_left = time_left
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
@@ -160,7 +173,7 @@ class CustomPlayer:
         # Right now, the book is very simple - pick the center
         # TODO: Improve opening book
         if game.move_count == 1:
-            logging.debug("Opening book move")
+            logging.debug("Returning opening book move")
             return math.floor(game.height / 2), math.floor(game.width / 2)
 
         # Keep track of the best move so far
@@ -175,7 +188,9 @@ class CustomPlayer:
 
             # If we are using iterative deepening, search depth should start at 1
             if self.search_depth == -1 and self.iterative:
-                self.search_depth = 1
+                depth_to_search = 1
+            else:
+                depth_to_search = self.search_depth
 
             while True:
                 if self.time_left() < self.TIMER_THRESHOLD:
@@ -183,12 +198,14 @@ class CustomPlayer:
 
                 if self.method == 'minimax':
                     # Run minimax
-                    logging.debug("Running minimax with search depth %d", self.search_depth)
-                    score, move = self.minimax(game, self.search_depth)
+                    logging.debug("Running minimax with search depth %d", depth_to_search)
+                    score, move = self.minimax(game, depth_to_search)
+                    logging.debug("Minimax returned move %s with score %f", move, score)
                 elif self.method == 'alphabeta':
                     # Run alpha beta pruning
-                    logging.debug("Running alpha beta pruning with search depth %d", self.search_depth)
-                    score, move = self.alphabeta(game, self.search_depth)
+                    logging.debug("Running alpha beta pruning with search depth %d", depth_to_search)
+                    score, move = self.alphabeta(game, depth_to_search)
+                    logging.debug("Alphabeta returned move %s with score %f", move, score)
                 else:
                     logging.warning("Unknown search method: %s", self.method)
 
@@ -196,13 +213,16 @@ class CustomPlayer:
                 if self.best_move_so_far is None or self.best_move_score < score:
                     self.best_move_so_far = move
                     self.best_move_score = score
+                    logging.debug("Improving move to %s with score %f", move, score)
 
                 # If we need iterative deepening, proceed with that
                 if not self.iterative:
                     break
                 else:
-                    logging.debug("Iterative deepening. Increasing search depth to %d", self.search_depth + 1)
-                    self.search_depth += 1 # Iterative search with greater depth
+                    logging.debug("Iterative deepening. Increasing search depth to %d", depth_to_search + 1)
+                    depth_to_search += 1 # Iterative search with greater depth
+                    if self.search_depth != -1 and depth_to_search > self.search_depth:
+                        break
 
         except Timeout:
             # Handle any actions required at timeout, if necessary
@@ -214,6 +234,7 @@ class CustomPlayer:
                 self.best_move_so_far = legal_moves[0]
 
         # Return the best move from the last completed search iteration
+        logging.debug("Return from get_move with %s", self.best_move_so_far)
         return self.best_move_so_far
 
     def minimax(self, game, depth, maximizing_player=True):
