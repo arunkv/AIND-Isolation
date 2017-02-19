@@ -64,17 +64,65 @@ def ratio_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    if game.is_loser(player):
-        return float("-inf")
-
-    if game.is_winner(player):
-        return float("inf")
-
     my_moves = len(game.get_legal_moves(player))
     opponent_moves = len(game.get_legal_moves(game.get_opponent(player)))
-    ratio = float('inf') if opponent_moves == 0 else float(my_moves/opponent_moves)
+    return float("inf") if opponent_moves == 0 else float(my_moves/opponent_moves)
 
-    return ratio
+def avg_opp_reduction_score(game, player):
+    """ Heuristic 2:
+    Average reduction in opponent score by my moves from current state
+
+    Parameters
+    ----------
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
+
+    player : object
+        A player instance in the current game (i.e., an object corresponding to
+        one of the player objects `game.__player_1__` or `game.__player_2__`.)
+
+    Returns
+    -------
+    float
+        The heuristic value of the current game state to the specified player.
+    """
+    opponent = game.get_opponent(player)
+    num_moves_opponent_before = len(game.get_legal_moves(opponent))
+
+    # Count legal moves that would reduce opponent's moves
+    legal_moves = game.get_legal_moves(player)
+    reduction = 0
+    for legal_move in legal_moves:
+        new_game = game.forecast_move(legal_move)
+        num_moves_opponent_after = len(new_game.get_legal_moves(opponent))
+        reduction += (num_moves_opponent_before - num_moves_opponent_after)
+    num_moves = len(legal_moves)
+    return float(reduction / num_moves) if num_moves > 0 else float("-inf")
+
+def reachable_score(game, player):
+    """ Heuristic 3:
+    Fraction of the board that is reachable by my moves
+
+    Parameters
+    ----------
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
+
+    player : object
+        A player instance in the current game (i.e., an object corresponding to
+        one of the player objects `game.__player_1__` or `game.__player_2__`.)
+
+    Returns
+    -------
+    float
+        The heuristic value of the current game state to the specified player.
+    """
+    num_blanks = len(game.get_blank_spaces())
+    num_moves = len(game.get_legal_moves(player))
+    return float(num_moves / num_blanks) if num_blanks > 0 else float("-inf")
+
 
 class CustomPlayer:
     """Game-playing agent that chooses a move using your evaluation function
