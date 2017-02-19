@@ -1,3 +1,5 @@
 .idea/
 game_agent.log
 __pycache__/
+*.pdf
+*_cache/

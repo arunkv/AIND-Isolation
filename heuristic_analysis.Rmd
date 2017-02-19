@@ -1,0 +1,31 @@
+---
+title: "Heuristic Analysis"
+author: "Arun K Viswanathan"
+date: "Feb 18th 2017"
+output:
+  pdf_document:
+    highlight: zenburn
+    toc: no
+  html_document:
+    theme: united
+    toc: yes
+---
+
+```{r setup, echo=FALSE, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE)
+```
+
+```{r load-libraries, echo=FALSE, include=FALSE}
+library(ggplot2)
+```
+
+```{r data, echo=FALSE, include=FALSE}
+```
+
+## Isolation Game Play Heuristics
+
+The following custom heuristics are implemented in game play for isolation:
+
+1. Ratio of number of moves
+In this heuristic, the score is computed as the ratio of the number of moves for the agent to the number of moves for the
+opponent player. 
