@@ -24,8 +24,10 @@ by 5 games to 0 in October 2015.
 
 The two primary techniques are used for search space reduction in Alpha Go, above and beyond minimax and 
 alpha-beta pruning. These are:
+
 1. Position evaluation resulting in truncation of search space by replacing subtrees with an 
 approximate value function that predicts the outcome of the subtree.
+
 2. Reduction of the breadth of the search space by sampling actions from a probability distribution over
 all possible moves in a given position. In particular, Alpha Go uses the Monte Carlo Tree Search (MCTS) algorithm
 as an alternative to minimax.

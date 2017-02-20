@@ -3,3 +3,7 @@ game_agent.log
 __pycache__/
 *.pdf
 *_cache/
+.RData
+.Rhistory
+project2.zip
+

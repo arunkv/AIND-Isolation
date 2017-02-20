@@ -79,18 +79,15 @@ df <- rbind(df, data.frame(Heuristic="Reachable",Player="Student",Opponent="AB_I
 
 The following custom heuristics are implemented in game play for isolation:
 
-1. Ratio 
-- In this heuristic, the score is computed as the ratio of the number of moves for the agent to the number of moves for the
-opponent player in teh given state. Higher ratios imply better positions for the agent.
+1. Ratio - In this heuristic, the score is computed as the ratio of the number of moves for the agent to the number of 
+moves for the opponent player in teh given state. Higher ratios imply better positions for the agent.
+2. Average Reduction - In this heuristic, the average reduction in the number of moves for the opponent, by moves of
+the agent, is used as a measure of the score.
+3. Reachability - This heuristic uses the fraction of the blank spaces in the board that can be reached by the agent's 
+next moves as a measure of the score.
 
-2. Average Reduction
-- In this heuristic, the average reduction in the number of moves for the opponent, by moves of the agent, is used as a
-measure of the score.
-
-3. Reachability
-- This heuristic uses the fraction of the blank spaces in the board that can be reached by the agent's next moves as a measure of the score.
-
-The plot below compares the win percentages for ID_Improved and the Student's `CustomPlayer` against the different opponents, with each of the three heuristics.
+The plot below compares the win percentages for ID_Improved and the Student's `CustomPlayer` against the different 
+opponents, with each of the three heuristics.
 
 ```{r plot, echo=FALSE, include=TRUE}
 df["WinPercent"] <- df["Wins"]/(df["Wins"]+df["Losses"])
@@ -101,8 +98,16 @@ plot <- ggplot(df, aes(x = Opponent, y = WinPercent, group = Player, col = Playe
   ylim(0, 1) +
   ylab("Win Percentage") +
   ggtitle("Comparison of Heuristics") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8))
 plot
 ```
 
-As seen in the plot, the ratio heuristic appears to be the best of three heuristics.
+Here are three reasons why the ratio heuristic is good:
+
+1. It is fairly quick to compute. In a performance profile (using PyCharm) on my system, 
+the score computation took only `1156 ms` for `55365` executions during the running of the tournament. 
+2. The ratio heuristic greatly favors moves that leave the opponent with fewer moves. 
+3. The ratio heuristic does not need to look at the entire board position or search tree, but just the immediate 
+moves of the agent and opponent.
+
+Thus the ratio heuristic seems to be the best one. 
